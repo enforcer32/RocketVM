@@ -1,0 +1,178 @@
+void counter_program()
+{
+	RocketVM::MemoryManager* memory = new RocketVM::MemoryManager;
+	memory->Allocate(255 * 255, true);
+
+	memory->WriteWord(0x0100, 0x0002);
+
+	memory->WriteByte(0, (uint8_t)RocketVM::Opcode::MOV_REG_MEM);
+	memory->WriteByte(1, (uint8_t)RocketVM::Register::RVA);
+	memory->WriteWord(2, (uint16_t)0x0100);
+
+	memory->WriteByte(4, (uint8_t)RocketVM::Opcode::MOV_REG_LIT);
+	memory->WriteByte(5, (uint8_t)RocketVM::Register::RVB);
+	memory->WriteWord(6, (uint16_t)0x0001);
+
+	memory->WriteByte(8, (uint8_t)RocketVM::Opcode::ADD_REG_REG);
+	memory->WriteByte(9, (uint8_t)RocketVM::Register::RVA);
+	memory->WriteByte(10, (uint8_t)RocketVM::Register::RVB);
+
+	memory->WriteByte(11, (uint8_t)RocketVM::Opcode::MOV_MEM_REG);
+	memory->WriteWord(12, (uint16_t)0x0100);
+	memory->WriteByte(14, (uint8_t)RocketVM::Register::RVACC);
+
+	memory->WriteByte(15, (uint8_t)RocketVM::Opcode::JNE_MEM_LIT);
+	memory->WriteWord(16, 0x0000);
+	memory->WriteByte(18, 0x0003);
+
+	RocketVM::CPU cpu;
+	cpu.Init(memory);
+
+	std::cout << "Intial State: " << std::endl;
+	cpu._DumpRegisters();
+
+	int i = 0;
+	while (true)
+	{
+		std::string line;
+		auto quit = linenoise::Readline(("Step->" + std::to_string(i++)).c_str(), line);
+		if (quit) break;
+
+		cpu.Step();
+		cpu._DumpRegisters();
+		cpu._DumpMemory(0x0100);
+		std::cout << std::endl;
+	}
+
+
+	std::cout << "EXITING\n";
+	delete memory;
+}
+
+void swap_program()
+{
+	RocketVM::MemoryManager* memory = new RocketVM::MemoryManager;
+	memory->Allocate(0xFFFF, true);
+
+	memory->WriteByte(0, (uint8_t)RocketVM::Opcode::MOV_REG_LIT);
+	memory->WriteByte(1, (uint8_t)RocketVM::Register::RVA);
+	memory->WriteWord(2, (uint16_t)0x1234);
+
+	memory->WriteByte(4, (uint8_t)RocketVM::Opcode::MOV_REG_LIT);
+	memory->WriteByte(5, (uint8_t)RocketVM::Register::RVB);
+	memory->WriteWord(6, (uint16_t)0xABCD);
+
+	memory->WriteByte(8, (uint8_t)RocketVM::Opcode::PUSH_REG);
+	memory->WriteByte(9, (uint8_t)RocketVM::Register::RVA);
+
+	memory->WriteByte(10, (uint8_t)RocketVM::Opcode::PUSH_REG);
+	memory->WriteByte(11, (uint8_t)RocketVM::Register::RVB);
+
+	memory->WriteByte(12, (uint8_t)RocketVM::Opcode::POP_REG);
+	memory->WriteByte(13, (uint8_t)RocketVM::Register::RVA);
+
+	memory->WriteByte(14, (uint8_t)RocketVM::Opcode::POP_REG);
+	memory->WriteByte(15, (uint8_t)RocketVM::Register::RVB);
+
+	RocketVM::CPU cpu;
+	cpu.Init(memory);
+
+	std::cout << "Intial State: " << std::endl;
+	cpu._DumpRegisters();
+	cpu._DumpStack();
+
+	int i = 0;
+	while (true)
+	{
+		std::string line;
+		auto quit = linenoise::Readline(("Step->" + std::to_string(i++)).c_str(), line);
+		if (quit) break;
+
+		cpu.Step();
+		cpu._DumpRegisters();
+		cpu._DumpStack();
+		//cpu._DumpMemory(memory->GetMemorySize() - 2);
+		std::cout << std::endl;
+	}
+
+
+	std::cout << "EXITING\n";
+	delete memory;
+}
+
+void subroutine_program()
+{
+	RocketVM::MemoryManager* memory = new RocketVM::MemoryManager;
+	memory->Allocate(0xFFFF, true);
+
+	// SUB ROUTINE
+	memory->WriteByte(0x3000, (uint8_t)RocketVM::Opcode::PUSH_LIT);
+	memory->WriteWord(0x3001, 0x0102);
+
+	memory->WriteByte(0x3003, (uint8_t)RocketVM::Opcode::PUSH_LIT);
+	memory->WriteWord(0x3004, 0x0304);
+
+	memory->WriteByte(0x3006, (uint8_t)RocketVM::Opcode::PUSH_LIT);
+	memory->WriteWord(0x3007, 0x0506);
+
+	memory->WriteByte(0x3009, (uint8_t)RocketVM::Opcode::MOV_REG_LIT);
+	memory->WriteByte(0x300A, (uint8_t)RocketVM::Register::RVA);
+	memory->WriteWord(0x300B, 0x0708);
+
+	memory->WriteByte(0x300D, (uint8_t)RocketVM::Opcode::MOV_REG_LIT);
+	memory->WriteByte(0x300E, (uint8_t)RocketVM::Register::RVC);
+	memory->WriteWord(0x300F, 0x090A);
+
+	memory->WriteByte(0x3011, (uint8_t)RocketVM::Opcode::RET);
+
+	// MAIN
+	memory->WriteByte(0, (uint8_t)RocketVM::Opcode::PUSH_LIT);
+	memory->WriteWord(1, 0x3333);
+
+	memory->WriteByte(3, (uint8_t)RocketVM::Opcode::PUSH_LIT);
+	memory->WriteWord(4, 0x2222);
+
+	memory->WriteByte(6, (uint8_t)RocketVM::Opcode::PUSH_LIT);
+	memory->WriteWord(7, 0x1111);
+
+	memory->WriteByte(9, (uint8_t)RocketVM::Opcode::MOV_REG_LIT);
+	memory->WriteByte(10, (uint8_t)RocketVM::Register::RVA);
+	memory->WriteWord(11, 0x1234);
+
+	memory->WriteByte(13, (uint8_t)RocketVM::Opcode::MOV_REG_LIT);
+	memory->WriteByte(14, (uint8_t)RocketVM::Register::RVB);
+	memory->WriteWord(15, 0x5678);
+
+	memory->WriteByte(17, (uint8_t)RocketVM::Opcode::PUSH_LIT);
+	memory->WriteWord(18, 0x0000);
+
+	memory->WriteByte(20, (uint8_t)RocketVM::Opcode::CALL_LABEL);
+	memory->WriteWord(21, 0x3000);
+
+	memory->WriteByte(23, (uint8_t)RocketVM::Opcode::PUSH_LIT);
+	memory->WriteWord(24, 0x4444);
+
+	RocketVM::CPU cpu;
+	cpu.Init(memory);
+
+	std::cout << "Intial State: " << std::endl;
+	cpu._DumpRegisters();
+	cpu._DumpStack();
+
+	int i = 0;
+	while (true)
+	{
+		std::string line;
+		auto quit = linenoise::Readline(("Step->" + std::to_string(i++)).c_str(), line);
+		if (quit) break;
+
+		cpu.Step();
+		cpu._DumpRegisters();
+		cpu._DumpStack();
+		std::cout << std::endl;
+	}
+
+
+	std::cout << "EXITING\n";
+	delete memory;
+}
